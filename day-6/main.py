@@ -118,3 +118,11 @@ for idx, (bump, bumpdir) in enumerate(the_path):
 
 # 817 is too low
 print(f"{len(valid_options)=}")
+
+
+opt_data = deepcopy(data)
+for opt in valid_options:
+    opt_data = redraw(opt_data, opt, "O")
+out = "\n".join(opt_data) + "\n"
+print(out)
+print()
