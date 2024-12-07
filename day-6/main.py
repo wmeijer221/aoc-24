@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from copy import deepcopy
 
 
 @dataclass(frozen=True)
@@ -37,26 +38,9 @@ dir_mapping = {
 }
 dir_mapping[dir_mapping1[-1]] = dir_mapping1[0]
 
-positions = set()
-the_path = list()
-
 
 def is_in_bounds(pos: coord) -> bool:
     return pos.x >= 0 and pos.x < mapsize.x and pos.y >= 0 and pos.y < mapsize.y
-
-
-while is_in_bounds(guard):
-    data[guard.y] = data[guard.y][0 : guard.x] + "X" + data[guard.y][guard.x + 1 :]
-    # out = "\n".join(data)
-    # print(out)
-
-    positions.add(guard)
-    next_guard = guard.move(guard_direction)
-    if next_guard in obstacles:
-        the_path.append((guard, guard_direction))
-        guard_direction = dir_mapping[guard_direction]
-    else:
-        guard = next_guard
 
 
 def redraw(data, position, icon):
@@ -64,6 +48,30 @@ def redraw(data, position, icon):
         data[position.y][0 : position.x] + icon + data[position.y][position.x + 1 :]
     )
     return data
+
+
+def simulate(guard, guard_direction, obstacles):
+    positions = set()
+    the_path = set()
+    opt_data = deepcopy(data)
+    loops = False
+    while is_in_bounds(guard):
+        opt_data = redraw(opt_data, guard, "X")
+
+        positions.add(guard)
+        next_guard = guard.move(guard_direction)
+        if next_guard in obstacles:
+            entry = (guard, guard_direction)
+            if entry in the_path:
+                loops = True
+                break
+            the_path.add(entry)
+            guard_direction = dir_mapping[guard_direction]
+        else:
+            guard = next_guard
+
+    out = "\n".join(opt_data)
+    return (positions, the_path, out, loops)
 
 
 def clamp(x, a, b):
@@ -74,55 +82,73 @@ def clamp(x, a, b):
     return x
 
 
+positions, the_path, opt_data, loops = simulate(startpos, guard_direction, obstacles)
+
 print(f"{len(positions)=}")
-from copy import deepcopy
+# print(opt_data)
 
-valid_options = set()
-for idx, (bump, bumpdir) in enumerate(the_path):
-    next_bumpdir = dir_mapping[bumpdir]
-    option = bump.move(next_bumpdir)
-    while option not in obstacles and is_in_bounds(option):
-        if option == startpos:
-            option = option.move(next_bumpdir)
+import tqdm
+
+loopcount = 0
+for x in tqdm.tqdm(range(mapsize.x)):
+    for y in range(mapsize.y):
+        c = coord(x, y)
+        if c in obstacles or c == startpos:
             continue
+        tmp_obs = obstacles.union([coord(x, y)])
+        _, _, _, loops = simulate(startpos, guard_direction, tmp_obs)
+        if loops:
+            loopcount += 1
 
-        for old_bump, old_bumpdir in the_path[:idx]:
+print(f"{loopcount}")
 
-            # opt_data = deepcopy(data)
-            # opt_data = redraw(opt_data, option, "O")
-            # opt_data = redraw(opt_data, old_bump, "G")
-            # opt_data = redraw(opt_data, bump, "B")
-            # out = "\n".join(opt_data) + "\n"
-            # print(out)
-            # print()
+# NOTE: no clue why this doesn't work.
+# valid_options = set()
+# for idx, (bump, bumpdir) in enumerate(the_path):
+#     next_bumpdir = dir_mapping[bumpdir]
+#     option = bump.move(next_bumpdir)
+#     while option not in obstacles and is_in_bounds(option):
+#         if option == startpos:
+#             option = option.move(next_bumpdir)
+#             continue
 
-            next_next_bumpdir = dir_mapping[next_bumpdir]
-            if old_bumpdir != next_next_bumpdir:
-                continue
+#         for old_bump, old_bumpdir in the_path[:idx]:
 
-            option_bump = option.unmove(next_bumpdir)
+#             # opt_data = deepcopy(data)
+#             # opt_data = redraw(opt_data, option, "O")
+#             # opt_data = redraw(opt_data, old_bump, "G")
+#             # opt_data = redraw(opt_data, bump, "B")
+#             # out = "\n".join(opt_data) + "\n"
+#             # print(out)
+#             # print()
 
-            if (
-                old_bumpdir.y != 0
-                and old_bump.x == option_bump.x
-                and clamp(old_bump.y - option_bump.y, -1, 1) == old_bumpdir.y
-            ):
-                valid_options.add(option)
-            elif (
-                old_bumpdir.x != 0
-                and old_bump.y == option_bump.y
-                and clamp(old_bump.x - option_bump.x, -1, 1) == old_bumpdir.x
-            ):
-                valid_options.add(option)
-        option = option.move(next_bumpdir)
+#             next_next_bumpdir = dir_mapping[next_bumpdir]
+#             if old_bumpdir != next_next_bumpdir:
+#                 continue
 
-# 817 is too low
-print(f"{len(valid_options)=}")
+#             option_bump = option.unmove(next_bumpdir)
+
+#             if (
+#                 old_bumpdir.y != 0
+#                 and old_bump.x == option_bump.x
+#                 and clamp(old_bump.y - option_bump.y, -1, 1) == old_bumpdir.y
+#             ):
+#                 valid_options.add(option)
+#             elif (
+#                 old_bumpdir.x != 0
+#                 and old_bump.y == option_bump.y
+#                 and clamp(old_bump.x - option_bump.x, -1, 1) == old_bumpdir.x
+#             ):
+#                 valid_options.add(option)
+#         option = option.move(next_bumpdir)
+
+# # 817 is too low
+# print(f"{len(valid_options)=}")
 
 
-opt_data = deepcopy(data)
-for opt in valid_options:
-    opt_data = redraw(opt_data, opt, "O")
-out = "\n".join(opt_data) + "\n"
-print(out)
-print()
+# opt_data = deepcopy(data)
+# for opt in valid_options:
+#     opt_data = redraw(opt_data, opt, "O")
+# out = "\n".join(opt_data) + "\n"
+# print(out)
+# print()
