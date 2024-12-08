@@ -74,8 +74,8 @@ for key, key_antennas in antennas.items():
             # print(out)
             # print()
 
-            data = redraw(data, a, key)
-            data = redraw(data, b, key)
+            # data = redraw(data, a, key)
+            # data = redraw(data, b, key)
 
             # p1
             l = b.add(delta)
