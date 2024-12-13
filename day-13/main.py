@@ -24,8 +24,9 @@ class Machine:
     prize: coord
 
 
-with open("./day-13/test-input.txt", "r") as input_data:
+with open("./day-13/input.txt", "r") as input_data:
     machines: Sequence[Machine] = []
+    machines2: Sequence[Machine] = []
     cur_a: coord
     cur_b: coord
     cur_prize: coord
@@ -33,6 +34,8 @@ with open("./day-13/test-input.txt", "r") as input_data:
         line = line.strip()
         if len(line) == 0:
             machines.append(Machine(cur_a, cur_b, cur_prize))
+            machines2.append(Machine(cur_a, cur_b, cur_prize.add(
+                coord(10000000000000, 10000000000000))))
             continue
         tokens = line.split()
         if "A:" in line:
@@ -49,10 +52,29 @@ cost_a = 3
 cost_b = 1
 
 
-# for machine in machines:
-#     x1 = machine.prize.x / machine.a.x
+def get(machine: Machine):
+    x = (machine.prize.x * machine.b.y - machine.b.x * machine.prize.y) / \
+        (machine.a.x * machine.b.y - machine.a.y * machine.b.x)
+    y = (machine.a.x * machine.prize.y - machine.a.y * machine.prize.x) / \
+        (machine.a.x * machine.b.y - machine.a.y * machine.b.x)
+    return x, y
 
 
-#     # x1 = (-machine.prize.x - ((machine.b.x * machine.prize.x) /
-#     #       machine.a.x)) / (machine.b.x - machine.a.x)
-#     print(x1)
+total1 = 0
+for machine in machines:
+    x, y = get(machine)
+    if int(x) == x and int(y) == y:
+        cost = cost_a * x + cost_b * y
+        total1 += cost
+
+print(f'{int(total1)=}')
+
+total2 = 0
+for machine in machines2:
+    x, y = get(machine)
+    if int(x) == x and int(y) == y:
+        cost = cost_a * x + cost_b * y
+        total2 += cost
+
+
+print(f'{int(total2)=}')
