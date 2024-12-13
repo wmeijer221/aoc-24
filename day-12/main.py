@@ -19,7 +19,7 @@ class coord:
         return coord(self.x * scalar, self.y * scalar)
 
 
-with open("./day-12/test-input.txt", "r") as input_file:
+with open("./day-12/input.txt", "r") as input_file:
     data = [[ele for ele in line.strip()] for line in input_file.readlines()]
 
 mapsize = coord(len(data[0]), len(data))
@@ -57,7 +57,7 @@ def count(pos: coord):
             yield from count(nb_pos)
 
 
-total2 = 0
+total1 = 0
 for x in range(mapsize.x):
     for y in range(mapsize.y):
         pos = coord(x, y)
@@ -67,9 +67,9 @@ for x in range(mapsize.x):
         perimiter = sum(e[0] for e in results)
         area = sum(e[1] for e in results)
         q = perimiter * area
-        total2 += q
+        total1 += q
 
-print(f"{total2=}")
+print(f"{total1=}")
 
 
 # p2
@@ -94,39 +94,55 @@ def count2(pos: coord):
 
 
 def handle_perimiters(perimiters: Sequence[Tuple[coord, coord]]):
-    print(perimiters)
-    print()
-
     panels = list()
 
     for (pos_a, pos_b) in perimiters:
+        possible_idxs = []
+        valid = True
         if pos_a.y == pos_b.y:
-            added = False
             for idx, panel in enumerate(panels):
                 for (ele_a, ele_b) in panel:
                     if abs(ele_a.y - pos_a.y) == 1 and (pos_a.x - pos_b.x) == (ele_a.x - ele_b.x) and pos_a.x == ele_a.x:
-                        panels[idx].append((pos_a, pos_b))
-                        added = True
+                        possible_idxs.append(idx)
                         break
-                if added:
-                    break
-            if not added:
-                panels.append([(pos_a, pos_b)])
-        else:
-            pass
 
-    return panels
+        elif pos_a.x == pos_b.x:
+            for idx, panel in enumerate(panels):
+                for (ele_a, ele_b) in panel:
+                    if abs(ele_a.x - pos_a.x) == 1 and (pos_a.y - pos_b.y) == (ele_a.y - ele_b.y) and pos_a.y == ele_a.y:
+                        possible_idxs.append(idx)
+                        break
+
+        else:
+            valid = False
+
+        if valid:
+            if len(possible_idxs) == 0:
+                panels.append([(pos_a, pos_b)])
+            elif len(possible_idxs) == 1:
+                panels[possible_idxs[0]].append((pos_a, pos_b))
+            else:
+                possible_idxs = sorted(possible_idxs)
+                target_idx = possible_idxs[0]
+                panels[target_idx].append((pos_a, pos_b))
+                sources = sorted(possible_idxs[1:], reverse=True)
+                for source_idx in sources:
+                    panels[target_idx].extend(panels[source_idx])
+                    panels = [*panels[:source_idx], *panels[source_idx + 1:]]
+
+    return len(panels)
 
 
 total2 = 0
-for x in range(mapsize.x):
-    for y in range(mapsize.y):
+for y in range(mapsize.y):
+    for x in range(mapsize.x):
         pos = coord(x, y)
         if pos in finished2:
             continue
         results = list(count2(pos))
         area = sum(e[1] for e in results)
         perimiters = [e[0] for e in results if e[0] != 0]
+        label = get(perimiters[0][0])
         perimiter = handle_perimiters(perimiters)
         q = perimiter * area
         total2 += q
