@@ -1,3 +1,4 @@
+import itertools
 import tqdm
 from collections.abc import Sequence
 from copy import deepcopy
@@ -24,7 +25,8 @@ class coord:
         return coord(self.x % gridsize.x, self.y % gridsize.y)
 
 
-with open('./day-20/test-input.txt', 'r') as input_file:
+input_path = './day-20/input.txt'
+with open(input_path, 'r') as input_file:
     maze = list()
     start = None
     end = None
@@ -63,76 +65,143 @@ def day_18_search(start: coord, target: coord):
             if total_cost < cost_map[nb.y][nb.x]:
                 cost_map[nb.y][nb.x] = total_cost
                 to_visit.add(nb)
-    return cost_map[target.y][target.x]
+    return cost_map
 
 
 def draw_path(path: Sequence[coord]):
-    my_map = deepcopy(maze)
-    for pos in path:
-        chr = 'x' if my_map[pos.y][pos.x] == '.' else 'O'
-        my_map[pos.y][pos.x] = chr
-    my_map = ["".join(ele) for ele in my_map]
-    my_map = "\n".join(my_map)
-    my_map = my_map.replace(".", 'q').replace('x', '.').replace('q', ' ')
-    my_map += "\n"
-    print(my_map)
+    elements = set(path)
+
+    out = ""
+    for y in range(mapsize.y):
+        for x in range(mapsize.x):
+            pos = coord(x, y)
+            if pos in elements:
+                if maze[pos.y][pos.x] == "#":
+                    out = f'{out}O'
+                else:
+                    out = f'{out}.'
+            else:
+                if maze[pos.y][pos.x] == "#":
+                    out = f'{out}#'
+                else:
+                    out = f'{out} '
+        out = f'{out}\n'
+    print(out)
 
 
-def is_outside_map(pos: coord) -> bool:
-    return pos.x < 0 or pos.x >= mapsize.x or pos.y < 0 or pos.y >= mapsize.y
+def draw_empty(elements: Sequence[coord]):
+    elements = set(elements)
+
+    max_x = max(ele.x for ele in elements)
+    max_y = max(ele.y for ele in elements)
+
+    out = ""
+    for y in range(max_y + 2):
+        for x in range(max_x + 2):
+            pos = coord(x, y)
+            if pos in elements:
+                out = f'{out}#'
+            else:
+                out = f'{out}.'
+        out = f'{out}\n'
+    print(out)
 
 
-def search2(start: coord, target: coord, max_cost: int):
-    to_visit = {(start, True, (start,))}
-    cost_map = list()
-    known_paths = set()
-    for _ in range(len(maze)):
-        entry = list()
-        for _ in range(len(maze[0])):
-            entry.append([set(), set()])
-        cost_map.append(entry)
-    cost_map[start.y][start.x][False].add(0)
-    tracker = tqdm.tqdm()
-    while len(to_visit) > 0:
-        tracker.n += 1
-        if tracker.n % 5000 == 0:
-            tracker.set_description(f'{len(to_visit)=}')
-            tracker.refresh()
-        cur_pos, can_cheat, my_path = to_visit.pop()
-        total_cost = min(cost_map[cur_pos.y][cur_pos.x][not can_cheat])
-        total_cost += 1
-        pos_delta = abs(cur_pos.x - target.x) + abs(cur_pos.y - target.y)
-        cost_delta = max_cost - total_cost
-        if pos_delta > cost_delta or cost_delta <= 0:
-            continue
-        for dir in dirs:
-            nb_pos = cur_pos.add(dir)
-            if nb_pos in my_path or is_outside_map(nb_pos):
-                continue
-            is_cheating = maze[nb_pos.y][nb_pos.x] == "#"
-            if is_cheating and not can_cheat:
-                continue
-            my_new_path = (*my_path, nb_pos,)
-            h_my_new_path = hash(my_new_path)
-            if h_my_new_path in known_paths:
-                continue
-            known_paths.add(h_my_new_path)
-            has_cheated = not can_cheat or is_cheating
-            cost_map[nb_pos.y][nb_pos.x][has_cheated].add(total_cost)
-            can_still_cheat = not has_cheated
-            to_visit.add((nb_pos, can_still_cheat, my_new_path))
-            if nb_pos == target:
-                yield my_new_path
+cost_map = day_18_search(start, end)
 
 
-original_length = day_18_search(start, end)
-deltas = SafeDict(default_value=0)
+def get(pos: coord):
+    return cost_map[pos.y][pos.x]
+
+
+def is_not_in_bounds(nb: coord):
+    return nb.x < 0 or nb.x >= mapsize.x or nb.y < 0 or nb.y >= mapsize.y
+
+
 total1 = 0
-for my_path in search2(start, end, original_length):
-    delta = original_length - (len(my_path) - 1)
-    deltas[delta] += 1
-    if delta >= 100:
-        total1 += 1
-        print(total1)
+for y in range(mapsize.y):
+    for x in range(mapsize.x):
+        pos = coord(x, y)
+        if maze[pos.y][pos.x] != "#":
+            continue
+        for i, dir_a in enumerate(dirs):
+            for dir_b in dirs[i+1:]:
+                nb_pos_a = pos.add(dir_a)
+                nb_pos_b = pos.add(dir_b)
+                if is_not_in_bounds(nb_pos_a) or is_not_in_bounds(nb_pos_b):
+                    continue
+                cost_a = cost_map[nb_pos_a.y][nb_pos_a.x]
+                cost_b = cost_map[nb_pos_b.y][nb_pos_b.x]
+                if cost_a == math.inf or cost_b == math.inf:
+                    continue
+                cost_gain = abs(cost_a - cost_b)
+                cost_gain -= 2
+                if cost_gain >= 100:
+                    total1 += 1
 
-print(deltas)
+# 1329 is too low
+# 1355
+print(f'{total1=}')
+
+
+def targets(pos: coord, radius: coord):
+    for x in range(-radius, radius + 1):
+        for y in range(radius - abs(x) + 1):
+            yield coord(pos.x + x, pos.y + y)
+            yield coord(pos.x + x, pos.y - y)
+            if x != 0:
+                yield coord(pos.x - x, pos.y + y)
+            if y != 0:
+                yield coord(pos.x - x, pos.y - y)
+
+
+def bounded_targets(pos: coord, radius: int):
+    for ele in targets(pos, radius):
+        if is_not_in_bounds(ele):
+            continue
+        yield ele
+
+
+def valid_bounded_targets(pos: coord, radius: int):
+    q = set()
+    for ele in bounded_targets(pos, radius):
+        if maze[ele.y][ele.x] == "#":
+            continue
+        if ele in q:
+            continue
+        q.add(ele)
+        yield ele
+
+
+# draw_path(valid_bounded_targets(start, 6))
+# print(list(valid_bounded_targets(start, 6)))
+
+is_test = 'test' in input_path
+radius = 20
+threshold = 50 if is_test else 100
+
+total2 = 0
+# scores = SafeDict(default_value=0)
+for y in range(mapsize.y):
+    for x in range(mapsize.x):
+        pos = coord(x, y)
+        if maze[pos.y][pos.x] == "#":
+            continue
+        my_cost = cost_map[pos.y][pos.x]
+        for nb_pos in valid_bounded_targets(pos, radius):
+            nb_cost = cost_map[nb_pos.y][nb_pos.x]
+            cost_gain = nb_cost - my_cost
+            if cost_gain < 0:
+                continue
+            cost_gain -= abs(pos.x - nb_pos.x) + abs(pos.y - nb_pos.y)
+            # scores[cost_gain] += 1
+            if cost_gain >= threshold:
+                total2 += 1
+
+# 285 example.
+
+# 2366599 too high
+# 233266 too low
+# 466532 too low
+print(f'{total2=}')
+# print(scores)
