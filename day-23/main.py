@@ -1,8 +1,6 @@
-
-from copy import deepcopy
+import networkx as nx
 import tqdm
 from wmutils.collections.safe_dict import SafeDict
-import networkx as nx
 
 with open('./day-23/input.txt', 'r') as input_file:
     edges = [line.strip().split("-") for line in input_file]
@@ -11,8 +9,6 @@ G = nx.Graph(edges)
 
 found_cliques = set()
 for node in G.nodes:
-    if node[0] != 't':
-        continue
     nbs = set(G.neighbors(node))
 
     for nb in nbs:
@@ -26,28 +22,30 @@ for node in G.nodes:
 
 found_cliques = sorted(list(found_cliques))
 
+total1 = 0
+for clique in found_cliques:
+    if any(ele[0] == 't' for ele in clique):
+        total1 += 1
+
 # 2478 is too high
 # 1476
-print(f'{len(found_cliques)=}')
+print(f'{total1=}')
+
 
 # p2
-# my_cliques: SafeDict[str, list] = SafeDict(default_value=list)
-# my_clique_nbs: SafeDict[str, set] = SafeDict(default_value=set)
-# for clique in found_cliques:
-# for node in clique:
-# my_cliques[node].append(clique)
-# my_clique_nbs[node].update(clique)
-# my_cliques = dict(my_cliques)
-# my_clique_nbs = dict(my_clique_nbs)
+my_nbs: SafeDict[str, set] = SafeDict(default_value=set)
+for clique in found_cliques:
+    for node in clique:
+        my_nbs[node].update(clique)
+my_nbs = dict(my_nbs)
 
-my_nbs = {node: set(G.neighbors(node)) for node in G.nodes}
-
-# chiefs = {node for node in my_cliques.keys() if node[0] == 't'}
+for key in G.nodes:
+    if key[0] == 't':
+        del my_nbs[key]
 
 visited = set()
 to_visit = set()
-to_visit.update((node,) for node in G.nodes)
-largest_clusters = set()
+to_visit.update((node,) for node in my_nbs.keys())
 largest_cluster = set()
 largest_task_list = 0
 tracker = tqdm.tqdm()
@@ -57,7 +55,7 @@ while len(to_visit) > 0:
     largest_task_list = max(len(to_visit), largest_task_list)
     tracker.n += 1
     if tracker.n % 500 == 0:
-        msg = f'{len(to_visit)=}, {len(largest_clusters)=}, ' +\
+        msg = f'{len(to_visit)=}, ' + \
             f'{largest_task_list=}, {len(largest_cluster)=}'
         tracker.set_description(msg)
         tracker.refresh()
@@ -67,9 +65,6 @@ while len(to_visit) > 0:
 
     if len(cluster) > len(largest_cluster):
         largest_cluster = cluster
-        largest_clusters = set()
-    if len(cluster) == len(largest_cluster):
-        largest_clusters.add(cluster)
 
     # select candidate for expansion.
     for node, nbs in my_nbs.items():
@@ -98,5 +93,4 @@ password = ','.join(largest_cluster)
 # fc,fg,fp,fz,gn,io,ni,td,ws,xm,yl,zg incorrect
 # ca,dw,fo,if,ji,kg,ks,oe,ov,sb,ud,vr,xr
 print(f'{len(largest_cluster)=}')
-print(f'{len(largest_clusters)=}')
 print(f'{password=}')
