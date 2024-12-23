@@ -1,6 +1,7 @@
 
 
+q = ['a', 'b', 'c', 'd']
 
-
-a = "asdadsff"
-print(a[0:4])
+for i, e in enumerate(q):
+    for e2 in q[i+1:]:
+        print((e, e2))
